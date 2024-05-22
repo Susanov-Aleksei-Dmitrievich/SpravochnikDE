@@ -1,0 +1,1761 @@
+admin.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Data.SqlClient;
+using System.IO;
+using OfficeOpenXml;
+using OfficeOpenXml.Core.ExcelPackage;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class admin : Form
+    {
+        private string connectionString = "Data Source=DESKTOP-LJ3RRK0\\MSSQLSERVER2;Initial Catalog=TPBD5;Integrated Security=True";
+        private DataTable dataTable;
+        private DataTable dataTable2;
+
+
+        private Timer countdownTimer;
+        private int timeLeft = 5; // Время в минутах
+
+
+
+        public admin()
+        {
+            InitializeComponent();
+            LoadData();
+
+            // Инициализация таймера с интервалом 1 минута
+            countdownTimer = new Timer();
+            countdownTimer.Interval = 1000000; // 1 минута в миллисекундах
+            countdownTimer.Tick += CountdownTimer_Tick;
+
+            // Запуск таймера
+            countdownTimer.Start();
+
+        }
+
+
+        private void CountdownTimer_Tick(object sender, EventArgs e)
+        {
+            timeLeft--;
+
+            label6.Text = $"Оставшееся время: {timeLeft} мин.";
+
+
+            if (timeLeft == 3)
+            {
+                MessageBox.Show("До окончания времени сеанса осталось 3 минуты!");
+            }
+            else if (timeLeft <= 0)
+            {
+                // Остановка и удаление таймера
+                countdownTimer.Stop();
+                countdownTimer.Dispose();
+
+                // Открытие формы "Form1"
+                Form1 form1 = new Form1();
+                form1.Show();
+                // Закрыть форму "admin"
+                this.Close();
+                // Заблокировать кнопку на Form1 на 1 минуту
+                form1.BlockButtonForOneMinute();
+
+                
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+
+
+
+        private void AutoZoomImage(Image image, PictureBox pictureBox)
+        {
+            float scale = Math.Min((float)pictureBox.Width / image.Width, (float)pictureBox.Height / image.Height);
+            int newWidth = (int)(image.Width * scale);
+            int newHeight = (int)(image.Height * scale);
+
+            pictureBox.Image = new Bitmap(image, new Size(newWidth, newHeight));
+        }
+
+
+        private void LoadData()
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Оборуд", connection);
+                dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                dataGridView3.DataSource = dataTable;
+            }
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM [История входа]", connection);
+                dataTable2 = new DataTable();
+                adapter.Fill(dataTable2);
+                dataGridView2.DataSource = dataTable2;
+            }
+
+
+
+
+
+        }
+        public void LoadData2()
+        {
+
+        }
+
+        public void LoadPhoto(string login)
+        {
+            byte[] imgData = null;
+            string fio = string.Empty;
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                // Получаем ФИО сотрудника по его логину
+                string queryFIO = "SELECT ФИО FROM Сотрудники WHERE Логин = @Login";
+                SqlCommand commandFIO = new SqlCommand(queryFIO, connection);
+                commandFIO.Parameters.AddWithValue("@Login", login);
+                fio = (string)commandFIO.ExecuteScalar();
+
+                // Получаем данные из столбца Фото
+                string queryPhoto = "SELECT Фото FROM Сотрудники WHERE Логин = @Login";
+                SqlCommand commandPhoto = new SqlCommand(queryPhoto, connection);
+                commandPhoto.Parameters.AddWithValue("@Login", login);
+
+                using (SqlDataReader reader = commandPhoto.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        if (!reader.IsDBNull(0))
+                        {
+                            imgData = (byte[])reader["Фото"];
+                        }
+                    }
+                }
+            }
+
+            // Отображаем ФИО в label1
+            if (!string.IsNullOrEmpty(fio))
+            {
+                int spaceIndex = fio.IndexOf(' '); // Находим индекс первого пробела
+
+                if (spaceIndex != -1)
+                {
+                    int secondSpaceIndex = fio.IndexOf(' ', spaceIndex + 1); // Находим индекс второго пробела, начиная с позиции после первого пробела
+
+                    if (secondSpaceIndex != -1)
+                    {
+                        // Индекс второго пробела найден, используйте его по вашему усмотрению
+                        {
+                            fio = fio.Substring(0, secondSpaceIndex); // Получаем только фамилию и имя
+                        }
+                        label1.Text = fio;
+                    }
+                }
+            }
+            else
+            {
+                label1.Text = "ФИО не найдено";
+            }
+
+            if (imgData != null)
+            {
+                using (MemoryStream ms = new MemoryStream(imgData))
+                {
+                    Image originalImage = Image.FromStream(ms);
+                    AutoZoomImage(originalImage, pictureBox1);
+                }
+            }
+            else
+            {
+                // Display a placeholder image or a message if the photo is not found
+                // For example:
+                // pictureBox1.Image = Properties.Resources.placeholderImage;
+            }
+        }
+
+
+
+
+
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBD5DataSet2.Оборуд". При необходимости она может быть перемещена или удалена.
+            this.оборудTableAdapter1.Fill(this.tPBD5DataSet2.Оборуд);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBD5DataSet1.История_входа". При необходимости она может быть перемещена или удалена.
+            this.история_входаTableAdapter1.Fill(this.tPBD5DataSet1.История_входа);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBD5DataSet.Заказы". При необходимости она может быть перемещена или удалена.
+            this.заказыTableAdapter1.Fill(this.tPBD5DataSet.Заказы);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet2.Оборуд". При необходимости она может быть перемещена или удалена.
+            this.оборудTableAdapter.Fill(this.tPBDDataSet2.Оборуд);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet1.История_входа". При необходимости она может быть перемещена или удалена.
+            this.история_входаTableAdapter.Fill(this.tPBDDataSet1.История_входа);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet.Заказы". При необходимости она может быть перемещена или удалена.
+            this.заказыTableAdapter.Fill(this.tPBDDataSet.Заказы);
+
+            label6.Text = $"Оставшееся время: {timeLeft} мин.";
+
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+
+        }
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button2_Click_2(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show("Вы хотите сохранить изменения?", "Сохранение изменений", MessageBoxButtons.YesNo);
+
+            if (result == DialogResult.Yes)
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+
+
+                    // Запись новых данных в базу данных
+                    SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Оборуд", connection);
+                    SqlCommandBuilder builder = new SqlCommandBuilder(adapter);
+                    adapter.Update(dataTable);
+                }
+
+                MessageBox.Show("Изменения успешно сохранены!");
+            }
+            else
+            {
+                MessageBox.Show("Изменения не были сохранены.");
+            }
+        }
+
+        private void pictureBox1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void dataGridView3_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                string query = "SELECT * FROM Заказы WHERE Статус = 'В прокате'";
+                SqlDataAdapter adapter = new SqlDataAdapter(query, connection);
+                DataTable ordersTable = new DataTable();
+                adapter.Fill(ordersTable);
+
+                if (ordersTable.Rows.Count > 0)
+                {
+                    using (OfficeOpenXml.ExcelPackage excelPackage = new OfficeOpenXml.ExcelPackage())
+                    {
+                        OfficeOpenXml.ExcelWorksheet worksheet = excelPackage.Workbook.Worksheets.Add("Заказы Отчёт " + DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss"));
+
+                        // Добавляем названия столбцов
+                        for (int i = 0; i < ordersTable.Columns.Count; i++)
+                        {
+                            worksheet.Cells[1, i + 1].Value = ordersTable.Columns[i].ColumnName;
+                        }
+
+                        // Заполняем данные из таблицы
+                        for (int i = 0; i < ordersTable.Rows.Count; i++)
+                        {
+                            for (int j = 0; j < ordersTable.Columns.Count; j++)
+                            {
+                                worksheet.Cells[i + 2, j + 1].Value = ordersTable.Rows[i][j].ToString();
+                            }
+                        }
+
+                        string filePath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), worksheet.Name + ".xlsx");
+                        excelPackage.SaveAs(new FileInfo(filePath));
+
+                        System.Diagnostics.Process.Start(filePath);
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("Нет данных для сохранения.");
+                }
+            }
+        }
+
+        private void textBox2_TextChanged_1(object sender, EventArgs e)
+        {
+            string searchValue = textBox2.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(searchValue))
+            {
+                // Display all data from the "Clients" table
+                dataGridView2.DataSource = dataTable2;
+            }
+            else
+            {
+                // Perform search in the "Clients" table
+                DataTable searchedData = dataTable2.Clone(); // Clone the structure of the original DataTable
+
+                foreach (DataRow row in dataTable2.Rows)
+                {
+                    foreach (var item in row.ItemArray)
+                    {
+                        if (item.ToString().IndexOf(searchValue, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            searchedData.ImportRow(row); // Import the row to the new DataTable
+                            break;
+                        }
+                    }
+                }
+
+                dataGridView2.DataSource = searchedData;
+            }
+        }
+
+        private void label6_Click(object sender, EventArgs e)
+        {
+
+        }
+    }
+}
+
+
+Form1.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using System.Data.SqlClient;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.ToolBar;
+
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form1 : Form
+    {
+        private string connectionString = "Data Source=DESKTOP-LJ3RRK0\\MSSQLSERVER2;Initial Catalog=TPBD5;Integrated Security=True";
+        private int loginAttempts = 0;
+        private DateTime lastFailedLoginTime = DateTime.MinValue;
+
+
+
+        public Form1()
+        {
+            InitializeComponent();
+           
+
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if (textBox2.UseSystemPasswordChar)
+            {
+                // Если пароль скрыт, показать текст
+                textBox2.UseSystemPasswordChar = false;
+            }
+            else
+            {
+                // Если текст отображается, скрыть пароль
+                textBox2.UseSystemPasswordChar = true;
+            }
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+            // Изначально пароль скрыт
+            textBox2.UseSystemPasswordChar = true;
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            label7.Visible = false;
+            label4.Visible = false;
+            label5.Visible = false;
+            label6.Visible = false;
+            label8.Visible = false;
+            textBox3.Visible = false;
+            button4.Visible = false;
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            admin sled = new admin();
+            sled.Show();
+            
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Form3 sled = new Form3();
+            sled.Show();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            Form9 sled = new Form9();
+            sled.Show();
+        }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+
+
+        public void BlockButtonForOneMinute()
+        {
+            button5.Enabled = false;
+
+            Timer unblockButtonTimer = new Timer();
+            unblockButtonTimer.Interval = 5000; // 1 минута в миллисекундах
+            unblockButtonTimer.Tick += (sender, e) =>
+            {
+                button5.Enabled = true;
+                unblockButtonTimer.Stop();
+                unblockButtonTimer.Dispose();
+            };
+
+            unblockButtonTimer.Start();
+        }
+
+
+
+
+
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+
+            
+            
+                
+               
+           
+
+            string login = textBox1.Text;
+            string password = textBox2.Text;
+
+            if (ValidateLogin(login, password))
+            {
+                string position = GetPosition(login);
+                if (position == "Администратор")
+                {
+                    MessageBox.Show("Вы вошли как администратор!");
+                    admin admin = new admin();
+                    admin.Tag = this;
+
+
+
+
+                    // Вызов метода LoadPhoto на экземпляре формы "admin" с передачей логина
+                    admin.LoadPhoto(login);
+
+                   
+                    admin.Show();
+                    
+                }
+                else if (position == "Продавец" || position == "Старший смены")
+                {
+                    MessageBox.Show("Вы вошли как " + position + "!");
+                    Form3 form3 = new Form3();
+                    form3.Tag = this;
+
+                    form3.LoadPhoto(login);
+
+                    form3.Show();
+                   
+                }
+            }
+            else
+            {
+                loginAttempts++;
+                if (loginAttempts >= 1)
+                {
+
+                    button5.Enabled = false;
+                    MessageBox.Show("Неправильный логин или пароль! Вход заблокирован! Введите CAPTCHA!");
+                    label7.Visible = true;
+                    label4.Visible = true;
+                    label5.Visible = true;
+                    label6.Visible = true;
+                    label8.Visible = true;
+                    textBox3.Visible = true;
+                    button4.Visible = true;
+
+
+                }
+                else if (loginAttempts > 0)
+                {
+                    
+                }    
+                    
+                // Добавить код для CAPTCHA
+            }
+        }
+
+        private bool ValidateLogin(string login, string password)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = "SELECT COUNT(*) FROM Сотрудники WHERE Логин=@Login AND Пароль=@Password";
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Login", login);
+                command.Parameters.AddWithValue("@Password", password);
+                int count = (int)command.ExecuteScalar();
+                connection.Close();
+                return count > 0;
+            }
+        }
+
+        private string GetPosition(string login)
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = "SELECT Должность FROM Сотрудники WHERE Логин=@Login";
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Login", login);
+                string position = command.ExecuteScalar()?.ToString();
+                connection.Close();
+                return position;
+            }
+        }
+
+        private void button1_Click_1(object sender, EventArgs e)
+        {
+            admin admin = new admin();
+            admin.Show();
+        }
+
+        private void button3_Click_1(object sender, EventArgs e)
+        {
+            Form3 form3 = new Form3();
+            form3.Show();
+        }
+
+        private void button4_Click_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button4_Click_2(object sender, EventArgs e)
+        {
+            string CAPTCHA = textBox3.Text;
+
+            if (CAPTCHA == "ABC")
+            {
+                button5.Enabled = true;
+            }
+            else
+            {
+                MessageBox.Show("CAPTCHA введена не верно! Вход заблокирован на 5 секунд! Пожалуйста, подождите и попробуйте снова позже!");
+                // Заблокировать кнопку на Form1 на 1 минуту
+                BlockButtonForOneMinute();
+
+            }
+        }
+    }
+}
+
+Form3.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Xml.Linq;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+using iTextSharp;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form3 : Form
+    {
+        private string connectionString = "Data Source=DESKTOP-LJ3RRK0\\MSSQLSERVER2;Initial Catalog=TPBD5;Integrated Security=True";
+        private DataTable dataTable;
+        private DataTable dataTable2;
+        private DataTable dataTable3;
+        int etap = 0;
+        int rast = 23;
+
+
+        private Timer countdownTimer;
+        private int timeLeft = 5; // Время в минутах
+
+
+        public Form3()
+        {
+            InitializeComponent();
+            LoadData();
+            LoadClientNames();
+
+            // Инициализация таймера с интервалом 1 минута
+            countdownTimer = new Timer();
+            countdownTimer.Interval = 1000000; // 1 минута в миллисекундах
+            countdownTimer.Tick += CountdownTimer_Tick;
+
+            // Запуск таймера
+            countdownTimer.Start();
+
+        }
+
+
+        private void CountdownTimer_Tick(object sender, EventArgs e)
+        {
+            timeLeft--;
+
+            label12.Text = $"Оставшееся время: {timeLeft} мин.";
+
+
+            if (timeLeft == 3)
+            {
+                MessageBox.Show("До окончания времени сеанса осталось 3 минуты!");
+            }
+            else if (timeLeft <= 0)
+            {
+                // Остановка и удаление таймера
+                countdownTimer.Stop();
+                countdownTimer.Dispose();
+
+                // Открытие формы "Form1"
+                Form1 form1 = new Form1();
+                form1.Show();
+                // Закрыть форму "admin"
+                this.Close();
+                // Заблокировать кнопку на Form1 на 1 минуту
+                form1.BlockButtonForOneMinute();
+
+
+            }
+        }
+
+
+
+
+
+
+
+
+
+
+        private void LoadData()
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Заказы", connection);
+                dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                dataGridView3.DataSource = dataTable;
+            }
+
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Клиенты", connection);
+                dataTable2 = new DataTable();
+                adapter.Fill(dataTable2);
+                dataGridView1.DataSource = dataTable2;
+            }
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Услуги", connection);
+                dataTable3 = new DataTable();
+                adapter.Fill(dataTable3);
+                dataGridView2.DataSource = dataTable3;
+            }
+
+
+        }
+
+
+
+
+
+        private void AutoZoomImage(System.Drawing.Image image, PictureBox pictureBox)
+        {
+            float scale = Math.Min((float)pictureBox.Width / image.Width, (float)pictureBox.Height / image.Height);
+            int newWidth = (int)(image.Width * scale);
+            int newHeight = (int)(image.Height * scale);
+
+            pictureBox.Image = new Bitmap(image, new Size(newWidth, newHeight));
+        }
+
+
+        public void LoadPhoto(string login)
+        {
+            byte[] imgData = null;
+            string fio = string.Empty;
+            string position = string.Empty;
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+
+
+                // Получаем данные из столбца Фото
+                string queryPhoto = "SELECT Фото FROM Сотрудники WHERE Логин = @Login";
+                SqlCommand commandPhoto = new SqlCommand(queryPhoto, connection);
+                commandPhoto.Parameters.AddWithValue("@Login", login);
+
+                using (SqlDataReader reader2 = commandPhoto.ExecuteReader())
+                {
+                    if (reader2.Read())
+                    {
+                        if (!reader2.IsDBNull(0))
+                        {
+                            imgData = (byte[])reader2["Фото"];
+                        }
+                    }
+                }
+
+
+
+
+
+
+
+
+                // Получаем ФИО сотрудника и должность по его логину
+                string query = "SELECT ФИО, Должность FROM Сотрудники WHERE Логин = @Login";
+
+                SqlCommand command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@Login", login);
+                SqlDataReader reader = command.ExecuteReader();
+
+
+
+
+                if (reader.Read())
+                {
+                    fio = (string)reader["ФИО"];
+                    position = (string)reader["Должность"];
+                }
+
+                connection.Close();
+            
+            }
+        
+
+
+
+
+            // Отображаем ФИО в label1
+            if (!string.IsNullOrEmpty(fio))
+            {
+                int spaceIndex = fio.IndexOf(' ');
+                if (spaceIndex != -1)
+                {
+                    int secondSpaceIndex = fio.IndexOf(' ', spaceIndex + 1);
+                    if (secondSpaceIndex != -1)
+                    {
+                        fio = fio.Substring(0, secondSpaceIndex);
+                    }
+                    label1.Text = fio;
+                }
+            }
+            else
+            {
+                label1.Text = "ФИО не найдено";
+            }
+
+            label2.Text = position;
+            if (position == "Продавец")
+            {
+                label3.Text = "Окно продавца";
+                this.Text = "Окно продавца";
+            }
+            else if (position == "Старший смены")
+            {
+                label3.Text = "Окно старшего смены";
+                this.Text = "Окно старшего смены";
+            }
+
+
+
+
+
+
+
+
+            if (imgData != null)
+            {
+                using (MemoryStream ms = new MemoryStream(imgData))
+                {
+                    System.Drawing.Image originalImage = System.Drawing.Image.FromStream(ms);
+                    AutoZoomImage(originalImage, pictureBox1);
+                }
+            }
+            else
+            {
+                // Display a placeholder image or a message if the photo is not found
+                // For example:
+                // pictureBox1.Image = Properties.Resources.placeholderImage;
+                // Метод AutoZoomImage и другие обработчики событий оставьте без изменений
+
+            }
+        }
+
+        
+    
+
+
+
+
+private void button2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+           
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBD5DataSet5.Услуги". При необходимости она может быть перемещена или удалена.
+            this.услугиTableAdapter1.Fill(this.tPBD5DataSet5.Услуги);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBD5DataSet4.Клиенты". При необходимости она может быть перемещена или удалена.
+            this.клиентыTableAdapter1.Fill(this.tPBD5DataSet4.Клиенты);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBD5DataSet3.Заказы". При необходимости она может быть перемещена или удалена.
+            this.заказыTableAdapter1.Fill(this.tPBD5DataSet3.Заказы);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet7.Услуги". При необходимости она может быть перемещена или удалена.
+            this.услугиTableAdapter.Fill(this.tPBDDataSet7.Услуги);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet6.Клиенты". При необходимости она может быть перемещена или удалена.
+            this.клиентыTableAdapter.Fill(this.tPBDDataSet6.Клиенты);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet5.Заказы". При необходимости она может быть перемещена или удалена.
+            this.заказыTableAdapter.Fill(this.tPBDDataSet5.Заказы);
+
+            label12.Text = $"Оставшееся время: {timeLeft} мин.";
+
+        }
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
+            Form4 F4 = new Form4();
+            F4.Tag = this;
+            F4.Show();
+            this.Hide();
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            Form8 F8 = new Form8();
+            F8.Tag = this;
+            F8.Show();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+
+        private void button2_Click_2(object sender, EventArgs e)
+        {
+            string pdfDownloadLink = string.Empty;
+
+
+
+
+            if (int.TryParse(textBox4.Text, out int number1) && int.TryParse(textBox5.Text, out int number2))
+            {
+                int result2 = number1 * number2;
+
+                if (dataGridView3.CurrentRow != null)
+                {
+                    DataRow selectedDataRow = ((DataRowView)dataGridView3.CurrentRow.DataBoundItem).Row;
+                    selectedDataRow["Стоимость_всего"] = result2;
+
+                    textBox4.Clear();
+                    textBox5.Clear();
+
+                }
+            }
+
+
+
+                DataRow selectedDataRow2 = ((DataRowView)dataGridView3.CurrentRow.DataBoundItem).Row;
+            string services = selectedDataRow2["Услуги"]?.ToString();
+
+            if (!string.IsNullOrWhiteSpace(services) && services.EndsWith(", "))
+            {
+                selectedDataRow2["Услуги"] = services.Substring(0, services.Length - 2);
+            }
+
+
+
+
+
+
+
+
+
+            if (comboBox2.SelectedItem != null)
+            {
+                string selectedServiceName = comboBox2.SelectedItem.ToString();
+
+                DataRow selectedDataRow = ((DataRowView)dataGridView3.CurrentRow.DataBoundItem).Row;
+
+                // Find the corresponding row in the Услуги DataTable based on the selectedServiceName
+                DataRow[] serviceRows = dataTable3.Select("Наименование_услуги = '" + selectedServiceName + "'");
+
+                if (serviceRows.Length > 0)
+                {
+                    selectedDataRow["Услуги"] = string.Join(",", serviceRows.Select(row => row["idu"])); // Вставляем значение idu, перечисленные через запятую
+                }
+            }
+
+
+
+
+
+
+
+
+
+
+
+
+            if (comboBox1.SelectedItem != null)
+            {
+                string selectedClientName = comboBox1.SelectedItem.ToString();
+
+                DataRow selectedDataRow = ((DataRowView)dataGridView3.CurrentRow.DataBoundItem).Row;
+
+                // Find the corresponding row in the Клиенты DataTable based on the selectedClientName
+                DataRow[] clientRows = dataTable2.Select("ФИО = '" + selectedClientName + "'");
+
+                if (clientRows.Length > 0)
+                {
+                    selectedDataRow["idk"] = clientRows[0]["idk"]; // Вставляем значение idk
+                }
+            }
+
+
+
+
+
+
+
+
+
+            DialogResult result = MessageBox.Show("Вы хотите сохранить изменения?", "Сохранение изменений", MessageBoxButtons.YesNo);
+
+            if (result == DialogResult.Yes)
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+
+
+                    // Запись новых данных в базу данных
+                    SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Заказы", connection);
+                    SqlCommandBuilder builder = new SqlCommandBuilder(adapter);
+                    adapter.Update(dataTable);
+                }
+
+                MessageBox.Show("Изменения успешно сохранены!");
+            }
+            else
+            {
+                MessageBox.Show("Изменения не были сохранены.");
+            }
+
+
+
+
+
+
+
+            // Получаем выделенную строку в dataGridView3
+            if (dataGridView3.SelectedRows.Count > 0)
+            {
+                int selectedRowIndex = dataGridView3.SelectedRows[0].Index;
+                DataRow selectedDataRow = ((DataRowView)dataGridView3.Rows[selectedRowIndex].DataBoundItem).Row;
+
+                // Создаем новый PDF документ
+                string pdfFilePath = "Заказ_" + selectedDataRow["idk"] + ".pdf";
+                Document doc = new Document();
+                PdfWriter.GetInstance(doc, new FileStream(pdfFilePath, FileMode.Create));
+                doc.Open();
+
+                // Создаем таблицу с заголовком "Заказ + idk"
+                // Количество столбцов в таблице
+                // Добавляем русскоязычные названия для столбцов
+
+                PdfPTable table = new PdfPTable(12); 
+                table.AddCell("idz");
+                table.AddCell("Код_заказа");
+                table.AddCell("Дата_создания");
+                table.AddCell("Время_заказа");
+                table.AddCell("idk");
+                table.AddCell("Услуги");
+                table.AddCell("Статус");
+                table.AddCell("Дата_закрытия");
+                table.AddCell("Время_проката");
+                table.AddCell("Стоимость_всего");
+                table.AddCell("Ссылка");
+                table.AddCell("ids");
+
+                // Добавляем данные из выделенной строки в таблицу
+                table.AddCell(selectedDataRow["idz"].ToString());
+                table.AddCell(selectedDataRow["Код_заказа"].ToString());
+                table.AddCell(selectedDataRow["Дата_создания"].ToString());
+                table.AddCell(selectedDataRow["Время_заказа"].ToString());
+                table.AddCell(selectedDataRow["idk"].ToString());
+                table.AddCell(selectedDataRow["Услуги"].ToString());
+                table.AddCell(selectedDataRow["Статус"].ToString());
+                table.AddCell(selectedDataRow["Дата_закрытия"].ToString());
+                table.AddCell(selectedDataRow["Время_проката"].ToString());
+                table.AddCell(selectedDataRow["Стоимость_всего"].ToString());
+                table.AddCell(selectedDataRow["Ссылка"].ToString());
+                table.AddCell(selectedDataRow["ids"].ToString());
+
+
+                // После добавления всех данных, сгенерируем ссылку и сохраняем в переменную
+                pdfDownloadLink = "C:\\Users\\Alex\\Desktop\\Точка проката ЦПКиО им. С.М. Кирова2\\Точка проката ЦПКиО им. С.М. Кирова\\Точка проката ЦПКиО им. С.М. Кирова\\bin\\Release\\" + pdfFilePath; // Замените 'yourwebsite.com' на ваш домен
+
+
+
+
+                doc.Add(table);
+                doc.Close();
+
+
+                // Сохраняем ссылку в столбец "Ссылка" в исходных данных
+                selectedDataRow["Ссылка"] = pdfDownloadLink;
+
+
+                // Обновляем вид таблицы, чтобы отобразить изменения в столбце "Ссылка"
+                ((DataTable)dataGridView3.DataSource).AcceptChanges();
+
+
+
+
+
+
+
+
+                MessageBox.Show("PDF документ создан: " + pdfFilePath);
+
+
+
+
+
+
+                // Открываем PDF документ по умолчанию
+                System.Diagnostics.Process.Start(pdfFilePath);
+
+
+                // Теперь можно сохранить ссылку в текстовый документ
+                string txtFileName = "pdfDownloadLink.txt";
+                File.WriteAllText(txtFileName, pdfDownloadLink);
+
+
+
+                MessageBox.Show("Ссылка на PDF документ сохранена в файл: " + txtFileName);
+
+                System.Diagnostics.Process.Start(txtFileName);
+
+
+            }
+            else
+            {
+               
+            }
+
+           
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show("Вы хотите сохранить изменения?", "Сохранение изменений", MessageBoxButtons.YesNo);
+
+            if (result == DialogResult.Yes)
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+
+
+                    // Запись новых данных в базу данных
+                    SqlDataAdapter adapter = new SqlDataAdapter("SELECT * FROM Клиенты", connection);
+                    SqlCommandBuilder builder = new SqlCommandBuilder(adapter);
+                    adapter.Update(dataTable2);
+                }
+
+                MessageBox.Show("Изменения успешно сохранены!");
+            }
+            else
+            {
+                MessageBox.Show("Изменения не были сохранены.");
+            }
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged_1(object sender, EventArgs e)
+        {
+            string searchValue = textBox2.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(searchValue))
+            {
+                // Display all data from the "Clients" table
+                dataGridView1.DataSource = dataTable2;
+            }
+            else
+            {
+                // Perform search in the "Clients" table
+                DataTable searchedData = dataTable2.Clone(); // Clone the structure of the original DataTable
+
+                foreach (DataRow row in dataTable2.Rows)
+                {
+                    foreach (var item in row.ItemArray)
+                    {
+                        if (item.ToString().IndexOf(searchValue, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            searchedData.ImportRow(row); // Import the row to the new DataTable
+                            break;
+                        }
+                    }
+                }
+
+                dataGridView1.DataSource = searchedData;
+            }
+        }
+
+        private void textBox3_TextChanged(object sender, EventArgs e)
+        {
+            string searchValue = textBox3.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(searchValue))
+            {
+                // Display all data from the "Clients" table
+                dataGridView2.DataSource = dataTable3;
+            }
+            else
+            {
+                // Perform search in the "Clients" table
+                DataTable searchedData = dataTable3.Clone(); // Clone the structure of the original DataTable
+
+                foreach (DataRow row in dataTable3.Rows)
+                {
+                    foreach (var item in row.ItemArray)
+                    {
+                        if (item.ToString().IndexOf(searchValue, StringComparison.OrdinalIgnoreCase) >= 0)
+                        {
+                            searchedData.ImportRow(row); // Import the row to the new DataTable
+                            break;
+                        }
+                    }
+                }
+
+                dataGridView2.DataSource = searchedData;
+            }
+        }
+
+        private void dataGridView3_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+
+        }
+
+        private void dataGridView3_CellClick(object sender, DataGridViewCellEventArgs e)
+        {
+            
+        }
+
+        private void dataGridView3_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+
+
+
+        private void LoadClientNames()
+        {
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT ФИО FROM Клиенты", connection);
+                DataTable clientTable = new DataTable();
+                adapter.Fill(clientTable);
+
+                foreach (DataRow row in clientTable.Rows)
+                {
+                    comboBox1.Items.Add(row["ФИО"]); // Добавляем ФИО в comboBox1
+                }
+            }
+
+
+
+
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                SqlDataAdapter adapter = new SqlDataAdapter("SELECT Наименование_услуги FROM Услуги", connection);
+                DataTable serviceTable = new DataTable();
+                adapter.Fill(serviceTable);
+
+                foreach (DataRow row in serviceTable.Rows)
+                {
+                    comboBox2.Items.Add(row["Наименование_услуги"]); // Добавляем Наименование_услуги в comboBox2
+                }
+            }
+
+
+
+
+
+            }
+
+        private void comboBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button5_Click_1(object sender, EventArgs e)
+        {
+
+
+
+            if (comboBox2.SelectedItem != null)
+            {
+                string selectedServiceName = comboBox2.SelectedItem.ToString();
+
+                DataRow selectedDataRow = ((DataRowView)dataGridView3.CurrentRow.DataBoundItem).Row;
+
+                DataRow[] serviceRows = dataTable3.Select("Наименование_услуги = '" + selectedServiceName + "'");
+
+                // Добавляем данные из comboBox2 через запятую в строку dataGridView3
+                if (string.IsNullOrWhiteSpace(selectedDataRow["Услуги"]?.ToString()))
+                {
+                    if (serviceRows.Length > 0)
+                    {
+                        selectedDataRow["Услуги"] = string.Join(",", serviceRows.Select(row => row["idu"])) + ", "; // Вставляем значение idu, перечисленные через запятую
+                    }
+                }
+                else
+                {
+                    selectedDataRow["Услуги"] += string.Join(",", serviceRows.Select(row => row["idu"])) + ", ";
+                }
+
+                // Очищаем выбор в comboBox2
+                comboBox2.SelectedItem = null;
+            }
+
+            
+
+        }
+    }
+}
+
+Form4.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form4 : Form
+    {
+        public Form4()
+        {
+            InitializeComponent();
+           
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+           
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+           
+        }
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
+            Form5 F5 = new Form5();
+            F5.Tag = this;
+            F5.Show();
+            this.Hide();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Form6 F6 = new Form6();
+            F6.Tag = this;
+            F6.Show();
+            this.Hide();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            Form7 F7 = new Form7();
+            F7.Tag = this;
+            F7.Show();
+            this.Hide();
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button6_Click_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button6_Click_2(object sender, EventArgs e)
+        {
+
+        }
+    }
+}
+
+Form5.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form5 : Form
+    {
+        public Form5()
+        {
+            InitializeComponent();
+           
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+           
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+           
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+    }
+}
+
+
+Form6.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form6 : Form
+    {
+        public Form6()
+        {
+            InitializeComponent();
+           
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+           
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet4.Услуги". При необходимости она может быть перемещена или удалена.
+            this.услугиTableAdapter.Fill(this.tPBDDataSet4.Услуги);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "tPBDDataSet3.Клиенты". При необходимости она может быть перемещена или удалена.
+            this.клиентыTableAdapter.Fill(this.tPBDDataSet3.Клиенты);
+
+
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+    }
+}
+
+Form7.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form7 : Form
+    {
+        public Form7()
+        {
+            InitializeComponent();
+           
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+           
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+           
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+    }
+}
+
+
+Form8.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form8 : Form
+    {
+        public Form8()
+        {
+            InitializeComponent();
+           
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+           
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+           
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+    }
+}
+
+
+Form9.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    public partial class Form9 : Form
+    {
+        public Form9()
+        {
+            InitializeComponent();
+           
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            if (textBox2.UseSystemPasswordChar)
+            {
+                // Если пароль скрыт, показать текст
+                textBox2.UseSystemPasswordChar = false;
+            }
+            else
+            {
+                // Если текст отображается, скрыть пароль
+                textBox2.UseSystemPasswordChar = true;
+            }
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+            textBox2.UseSystemPasswordChar = true;
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+
+           
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            Form1 pred = new Form1();
+            pred.Show();
+
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            Form3 sled = new Form3();
+            sled.Show();
+        }
+
+        private void button5_Click(object sender, EventArgs e)
+        {
+            Form previousForm = this.Tag as Form;
+            if (previousForm != null)
+            {
+                previousForm.Show();
+                this.Close();
+            }
+        }
+    }
+}
+
+
+Program.cs
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace Точка_проката_ЦПКиО_им.С.М.Кирова
+{
+    internal static class Program
+    {
+        /// <summary>
+        /// Главная точка входа для приложения.
+        /// </summary>
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Form1());
+        }
+    }
+}

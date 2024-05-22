@@ -1,0 +1,387 @@
+ClassAvtorizacia.cs
+
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Data.SqlClient;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania.Classes
+{
+    internal class ClassAvtorizacia
+    {
+        //  string podcklucheniekBD = @"Data Source = DESKTOP-LJ3RRK0\MSSQLSERVER2; DataBase = UchetOborudovania; User ID = user01; Password = 123";
+        string podcklucheniekBD = @"Data Source = DESKTOP-LJ3RRK0\MSSQLSERVER2; Initial Catalog = UchetOborudovania; Integrated Security = true";
+        DataSet ds = new DataSet();
+
+
+        // Вход пользователя в систему в соответствии с введённым логином и паролем
+        public DataSet getUser(string login, string password)
+        {
+            string zapros = string.Format("Select * from Sotrudniki where login = '{0}' and password = '{1}'", login, password);
+
+            using (SqlConnection connection = new SqlConnection(podcklucheniekBD))
+            {
+                try
+                {
+                    connection.Open();
+                    SqlDataAdapter adapter = new SqlDataAdapter(zapros, connection);
+                    adapter.Fill(ds);
+                    connection.Close();
+                }
+                catch(Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally
+                {
+                    if(connection.State == ConnectionState.Open)
+                    {
+                        connection.Dispose();
+                    }
+                }
+            }
+            return ds;
+        }
+
+
+    }
+}
+
+
+OknoAdministrator.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Linq;
+using System.Net;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    public partial class OknoAdministrator : Form
+    {
+        string podcklucheniekBD = @"Data Source = DESKTOP-LJ3RRK0\MSSQLSERVER2; Initial Catalog = UchetOborudovania; Integrated Security = true";
+        public DataSet ds = new DataSet();
+        public DataTable dataTable = new DataTable();
+
+        public OknoAdministrator()
+        {
+            InitializeComponent();
+            loadData();
+        }
+
+        public void loadData()
+        {
+            using (SqlConnection connection = new SqlConnection(podcklucheniekBD))
+            {
+                try
+                {
+                    connection.Open();
+                    SqlDataAdapter adapter = new SqlDataAdapter("select * from Oborudovanie", connection);
+                    adapter.Fill(dataTable);
+                    dataGridView1.DataSource = dataTable;
+                    connection.Close();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally
+                {
+                    if (connection.State == ConnectionState.Open)
+                    {
+                        connection.Dispose();
+                    }
+                }
+            }
+        }
+
+
+
+
+        private void buttonNazad_Click(object sender, EventArgs e)
+        {
+            OknoAvtorizacia oknoAvtorizacia = new OknoAvtorizacia();
+            oknoAvtorizacia.Show();
+        }
+
+        private void OknoAdministrator_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet1.IstoriaVhoda". При необходимости она может быть перемещена или удалена.
+            this.istoriaVhodaTableAdapter.Fill(this.uchetOborudovaniaDataSet1.IstoriaVhoda);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet.Oborudovanie". При необходимости она может быть перемещена или удалена.
+            // this.oborudovanieTableAdapter.Fill(this.uchetOborudovaniaDataSet.Oborudovanie);
+
+            label3.Text = ds.Tables[0].Rows[0][1].ToString();
+
+        }
+
+        private void button1_Click(object sender, EventArgs e)
+        {
+            DialogResult result = MessageBox.Show("Вы хотите сохранить изменения?", "Сохранение изменений", MessageBoxButtons.YesNo);
+
+            if (result == DialogResult.Yes)
+            {
+                using (SqlConnection connection = new SqlConnection(podcklucheniekBD))
+                {
+                    try
+                    {
+                        connection.Open();
+                        SqlDataAdapter adapter = new SqlDataAdapter("select * from Oborudovanie", connection);
+                        SqlCommandBuilder builder = new SqlCommandBuilder(adapter);
+                        adapter.Update(dataTable);
+                        connection.Close();
+                        MessageBox.Show("Изменения сохранены!");
+                    }
+
+
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(ex.Message);
+                    }
+                    finally
+                    {
+                        if (connection.State == ConnectionState.Open)
+                        {
+                            connection.Dispose();
+                        }
+                    }
+
+                }
+            }
+            else
+            {
+                MessageBox.Show("Изменения не сохранены!");
+            }
+        }
+    }
+}
+
+
+
+OknoAvtorizacia.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using UchetOborudovania.Classes;
+
+namespace UchetOborudovania
+{
+    public partial class OknoAvtorizacia : Form
+    {
+        ClassAvtorizacia classAvtorizacia = new ClassAvtorizacia();
+        
+
+
+        public OknoAvtorizacia()
+        {
+            InitializeComponent();
+        }
+
+        private void button2_Click(object sender, EventArgs e)
+        {
+            OknoSotrudnik oknoSotrudnik = new OknoSotrudnik();
+            oknoSotrudnik.Show();
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            OknoRucovoditel oknoRucovoditel = new OknoRucovoditel();
+            oknoRucovoditel.Show();
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            OknoAdministrator oknoAdministrator = new OknoAdministrator();
+            oknoAdministrator.Show();
+        }
+
+        private void buttonVhod_Click(object sender, EventArgs e)
+        {
+            string login = textBoxLogin.Text;
+            string password = textBoxPassword.Text;
+
+            DataSet user = classAvtorizacia.getUser(login, password);
+
+            if (user.Tables[0].Rows.Count == 0)
+            {
+                MessageBox.Show("Пользователь не найден!");
+
+            }
+            else if(user.Tables[0].Rows.Count > 1)
+            {
+                MessageBox.Show("Пользователей найдено больше одного!");
+            }
+            else
+            {
+                switch (user.Tables[0].Rows[0][4])
+                {
+                    case "Сотрудник":
+                        MessageBox.Show("Пользователь сотрудник!");
+
+                        OknoSotrudnik oknoSotrudnik = new OknoSotrudnik();
+                        oknoSotrudnik.ds = user;
+                        oknoSotrudnik.Show();
+
+                        break;
+                    case "Администратор":
+                        MessageBox.Show("Пользователь администратор!");
+                        OknoAdministrator oknoAdministrator = new OknoAdministrator();
+                        oknoAdministrator.ds = user;
+                        oknoAdministrator.Show();
+                        break;
+                    case "Руководитель":
+                        MessageBox.Show("Пользователь руководитель!");
+                        OknoRucovoditel oknoRucovoditel = new OknoRucovoditel();
+                        oknoRucovoditel.ds = user;
+                        oknoRucovoditel.Show();
+                        break;
+                    default:
+                        MessageBox.Show("Данные из БД выгружены, но роль не найдена!");
+                        break;
+                }
+            }
+
+
+        }
+
+        private void checkBoxMaska_CheckedChanged(object sender, EventArgs e)
+        {
+            if(checkBoxMaska.Checked == true)
+            {
+                textBoxPassword.PasswordChar = '\0';
+            }
+            else
+            {
+                textBoxPassword.PasswordChar = '*';
+            }
+        }
+    }
+}
+
+
+OknoRucovoditel.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    public partial class OknoRucovoditel : Form
+    {
+        public DataSet ds = new DataSet();
+
+        public OknoRucovoditel()
+        {
+            InitializeComponent();
+        }
+
+        private void buttonNazad_Click(object sender, EventArgs e)
+        {
+            OknoAvtorizacia oknoAvtorizacia = new OknoAvtorizacia();
+            oknoAvtorizacia.Show();
+        }
+
+        private void OknoRucovoditel_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet3.Sotrudniki". При необходимости она может быть перемещена или удалена.
+            this.sotrudnikiTableAdapter.Fill(this.uchetOborudovaniaDataSet3.Sotrudniki);
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet2.Oborudovanie". При необходимости она может быть перемещена или удалена.
+            this.oborudovanieTableAdapter.Fill(this.uchetOborudovaniaDataSet2.Oborudovanie);
+
+            label3.Text = ds.Tables[0].Rows[0][1].ToString();
+
+        }
+    }
+}
+
+
+OknoSotrudnik.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    public partial class OknoSotrudnik : Form
+    {
+        public DataSet ds = new DataSet();
+
+        public OknoSotrudnik()
+        {
+            InitializeComponent();
+        }
+
+        private void OknoSotrudnik_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet4.Oborudovanie". При необходимости она может быть перемещена или удалена.
+            this.oborudovanieTableAdapter.Fill(this.uchetOborudovaniaDataSet4.Oborudovanie);
+
+            label3.Text = ds.Tables[0].Rows[0][1].ToString();
+
+        }
+
+        private void buttonNazad_Click(object sender, EventArgs e)
+        {
+            OknoAvtorizacia oknoAvtorizacia = new OknoAvtorizacia();
+            oknoAvtorizacia.Show();
+        }
+    }
+}
+
+
+Program.cs
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    internal static class Program
+    {
+        /// <summary>
+        /// Главная точка входа для приложения.
+        /// </summary>
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new OknoAvtorizacia());
+        }
+    }
+}

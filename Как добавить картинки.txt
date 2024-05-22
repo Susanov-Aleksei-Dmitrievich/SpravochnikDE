@@ -1,0 +1,64 @@
+Как добавить одну картинку
+
+UPDATE Tour SET ImagePreview = BulkColumn
+FROM OPENROWSET(BULK N'E:\111\1.jpg', SINGLE_BLOB) AS x WHERE Id = 5;
+
+Как добавить все картинки из папки чьё имя (без пробелов) совпадает с данными поля (без пробелов) в данном случае ID. Фотографии должны быть одинакового расширения «.jpeg» или «.jpg» или «.png» эти расширения можно переименовывать. Фотографии находятся в папке по пути «C:\5\».
+
+DECLARE @SQL NVARCHAR(MAX)
+
+SET @SQL = ''
+
+SELECT @SQL = @SQL + '
+UPDATE Сотрудники
+SET Фото = (SELECT BulkColumn 
+            FROM OPENROWSET(BULK ''C:\5\' + REPLACE(ids, ' ', '') + '.jpeg'', SINGLE_BLOB) AS Фото 
+            WHERE ids LIKE ''%' + REPLACE(ids, ' ', '%') + '%''
+           )
+WHERE ids LIKE ''%' + REPLACE(ids, ' ', '%') + '%'';' 
+
+
+
+FROM Сотрудники
+
+EXEC sp_executesql @SQL
+
+
+
+
+
+
+
+
+
+
+ 
+declare @SQL nvarchar(max)
+set @SQL = ''
+select @SQL = @SQL + '
+update Sotrudniki set FotoSotrud = (select bulkcolumn from openrowset(bulk ''C:\Users\Alex\Desktop\8\' + REPLACE(IdSotrudnika, ' ', '') + '.jpg'',
+single_blob) as FotoSotrud where IdSotrudnika like ''%' + REPLACE(IdSotrudnika, ' ', '%') + '%'')
+where IdSotrudnika like ''%' + REPLACE(IdSotrudnika, ' ', '%') + '%'';'
+
+from Sotrudniki
+
+exec sp_executesql @SQL
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+update Sotrudniki set FotoSotrud = bulkcolumn from openrowset(bulk 'C:\Users\Alex\Desktop\8\14.jpg', single_blob) as x where IdSotrudnika = 14;
+
+
+

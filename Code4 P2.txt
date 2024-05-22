@@ -1,0 +1,647 @@
+ClassAvtorizacia.cs
+
+using System;
+using System.Collections.Generic;
+using System.Data.SqlClient;
+using System.Data;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania.Class
+{
+    internal class ClassAvtorizacia
+    {
+        string connectionString = @"Data Source=DESKTOP-LJ3RRK0\MSSQLSERVER2;Initial Catalog=UchetOborudovania;Integrated Security=True";
+        public DataSet ds = new DataSet();
+
+
+        public DataSet getUser(string login, string password)
+        {
+            string query = string.Format("SELECT * FROM Sotrudniki WHERE Login = '{0}' AND Password='{1}'", login, password);
+
+            // Создание подключения
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+
+                try
+                {
+                    // Открываем подключение
+                    connection.Open();
+                    SqlDataAdapter adapter = new SqlDataAdapter(query, connectionString);
+                    adapter.Fill(ds);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message);
+                }
+                finally
+                {
+                    // Если подключение открыто
+                    if (connection.State == ConnectionState.Open)
+                    {
+                        // Закрываем подключение
+                        connection.Dispose();
+                    }
+
+                }
+
+                return ds;
+            }
+
+
+
+        }
+    }
+}
+
+OknoAdministratora.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Data.SqlClient;
+using System.Data.Common;
+
+namespace UchetOborudovania
+{
+    public partial class OknoAdministratora : Form
+    {
+        public DataSet ds = new DataSet();
+        public OknoAdministratora()
+        {
+            InitializeComponent();
+        }
+
+        private void buttonNazad_Click(object sender, EventArgs e)
+        {
+            OknoAvtorizacii oknoAvtorizacii = new OknoAvtorizacii();
+            oknoAvtorizacii.Show();
+            this.Close();
+        }
+
+        private void OknoAdministratora_Load(object sender, EventArgs e)
+        {
+
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet4.Oborudovanie". При необходимости она может быть перемещена или удалена.
+            this.oborudovanieTableAdapter1.Fill(this.uchetOborudovaniaDataSet4.Oborudovanie);
+
+
+            string connectionString = "Data Source=DESKTOP-LJ3RRK0\\MSSQLSERVER2;Initial Catalog=UchetOborudovania;Integrated Security=True";
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                string query = "SELECT * FROM IstoriaVhoda";
+
+                SqlDataAdapter dataAdapter = new SqlDataAdapter(query, connection);
+                SqlCommandBuilder commandBuilder = new SqlCommandBuilder(dataAdapter);
+
+                DataSet dataSet = new DataSet();
+                dataAdapter.Fill(dataSet, "IstoriaVhoda");
+
+                // Первоначально очистим столбцы в dataGridView1
+                dataGridView1.Columns.Clear();
+
+                // Сначала добавляем столбцы из таблицы "IstoriaVhoda"
+                foreach (DataColumn column in dataSet.Tables["IstoriaVhoda"].Columns)
+                {
+                    dataGridView1.Columns.Add(column.ColumnName, column.ColumnName);
+                }
+
+                foreach (DataRow row in dataSet.Tables["IstoriaVhoda"].Rows)
+                {
+                    // Проверяем, что значение в столбце "Status" не пустое
+                    if (!string.IsNullOrWhiteSpace(row["Status"].ToString()))
+                    {
+                        // Добавляем данные в строки dataGridView1
+                        dataGridView1.Rows.Add(row.ItemArray);
+
+                        // Устанавливаем цвет для строк в зависимости от значения столбца "Status"
+                        if (row["Status"].ToString() == "успешно")
+                        {
+                            dataGridView1.Rows[dataGridView1.Rows.Count - 1].DefaultCellStyle.BackColor = Color.LightGreen;
+                        }
+                        else if (row["Status"].ToString() == "неуспешно")
+                        {
+                            dataGridView1.Rows[dataGridView1.Rows.Count - 1].DefaultCellStyle.BackColor = Color.LightCoral;
+                        }
+                    }
+                }
+            }
+
+            textBoxPoiskOborudovania.TextChanged += new EventHandler(textBoxPoiskOborudovania_TextChanged);
+
+
+        }
+
+        private void Form_Shown(object sender, EventArgs e)
+        {
+
+        }
+
+
+
+        private void dataGridView1_CellFormatting(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+
+        }
+
+        private void OknoAdministratora_Shown(object sender, EventArgs e)
+        {
+
+        }
+
+        private void dataGridView1_CellFormatting_1(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+
+        }
+
+        private void dataGridView1_CellFormatting_2(object sender, DataGridViewCellFormattingEventArgs e)
+        {
+            if (e.RowIndex >= 0 && e.ColumnIndex >= 0) // Проверка ячейки
+            {
+                DataGridViewRow row = dataGridView1.Rows[e.RowIndex];
+
+                // Проверяем наличие значения в столбце "Status" и что это значение не пустое
+                if (row.Cells["Status"].Value != null && !string.IsNullOrWhiteSpace(row.Cells["Status"].Value.ToString()))
+                {
+                    string status = row.Cells["Status"].Value.ToString();
+
+                    if (status == "успешно")
+                    {
+                        row.DefaultCellStyle.BackColor = Color.LightGreen; // Выделяем зеленым цветом для успешных записей
+                    }
+                    else if (status == "неуспешно")
+                    {
+                        row.DefaultCellStyle.BackColor = Color.LightCoral; // Выделяем красным цветом для неуспешных записей
+                    }
+                }
+            }
+        }
+
+        private void textBoxPoiskOborudovania_TextChanged(object sender, EventArgs e)
+        {
+            string searchValue = textBoxPoiskOborudovania.Text.Trim();
+
+
+            // Проверка на пустой ввод
+            if (string.IsNullOrEmpty(searchValue))
+            {
+                // Очистить dataGridView3
+                dataGridView3.DataSource = null;
+
+                // Скрыть все PictureBox'ы
+                pictureBoxZeleniyKrug1.Visible = false;
+                pictureBoxZeleniyKrug2.Visible = false;
+                pictureBoxZeleniyKrug3.Visible = false;
+                pictureBoxZeleniyKrug4.Visible = false;
+                pictureBoxZeleniyKrug5.Visible = false;
+                pictureBoxZeleniyKrug6.Visible = false;
+                pictureBoxKrasniyKrug1.Visible = false;
+                pictureBoxKrasniyKrug2.Visible = false;
+                pictureBoxKrasniyKrug3.Visible = false;
+                pictureBoxKrasniyKrug4.Visible = false;
+                pictureBoxKrasniyKrug5.Visible = false;
+                pictureBoxKrasniyKrug6.Visible = false;
+
+                return;
+            }
+
+
+            
+
+            DataTable table = uchetOborudovaniaDataSet4.Tables["Oborudovanie"];
+
+            // Найти строки, где значение в столбце "SeriyniyNomer" равно введенному тексту
+            DataRow[] foundRows = table.Select("SeriyniyNomer = '" + searchValue + "'");
+
+            DataTable resultTable = table.Clone(); // Создать копию структуры таблицы
+
+            foreach (DataRow row in foundRows)
+            {
+                resultTable.ImportRow(row);
+            }
+
+            // Отображение найденных данных в dataGridView3
+            dataGridView3.DataSource = resultTable;
+
+            if (resultTable.Rows.Count > 0)
+            {
+                // Обработать данные для каждой строки в результате поиска
+                foreach (DataRow row in resultTable.Rows)
+                {
+                    // Прочитать значения колонок "Status" и "NomerKabineta"
+                    string status = row["Status"].ToString();
+                    int nomerKabineta = Convert.ToInt32(row["NomerKabineta"]);
+
+                    switch (status)
+                    {
+                        case "Работает":
+                            // Отображение зеленого круга
+                            if (nomerKabineta >= 1 && nomerKabineta <= 6)
+                            {
+                                Control pictureBox = Controls.Find("pictureBoxZeleniyKrug" + nomerKabineta, true).FirstOrDefault();
+                                if (pictureBox is PictureBox)
+                                {
+                                    pictureBox.Visible = true;
+                                }
+                            }
+                            break;
+                        case "Не работает":
+                            // Отображение красного круга
+                            if (nomerKabineta >= 1 && nomerKabineta <= 6)
+                            {
+                                Control pictureBox = Controls.Find("pictureBoxKrasniyKrug" + nomerKabineta, true).FirstOrDefault();
+                                if (pictureBox is PictureBox)
+                                {
+                                    pictureBox.Visible = true;
+                                }
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        }
+    }
+        }
+    
+
+
+OknoAvtorizacii.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using UchetOborudovania.Class;
+using System.Data.SqlClient;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
+namespace UchetOborudovania
+{
+    public partial class OknoAvtorizacii : Form
+    {
+
+        // Ваш конфигурационный параметр, указывающий имя сервера базы данных
+        string serverName = "DESKTOP-LJ3RRK0\\MSSQLSERVER2";
+        // Строка соединения с базой данных
+        string connectionString;
+        public int block1 = 0;
+
+        ClassAvtorizacia classAvtorizacia = new ClassAvtorizacia();
+        public OknoAvtorizacii()
+        {
+            InitializeComponent();
+            // Создание строки соединения с базой данных
+            connectionString = "Data Source=" + serverName + ";Initial Catalog=UchetOborudovania;Integrated Security=True";
+        }
+
+        private void buttonVhod_Click(object sender, EventArgs e)
+        {
+            string login = textBoxLogin.Text;
+            string password = textBoxParol.Text;
+            
+
+
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                SqlCommand cmd = new SqlCommand("SELECT IdSotrudnika, Rol FROM Sotrudniki WHERE Login = @login AND Password = @password", connection);
+                cmd.Parameters.AddWithValue("@login", login);
+                cmd.Parameters.AddWithValue("@password", password);
+
+                SqlDataReader reader = cmd.ExecuteReader();
+               
+
+                if (reader.Read())
+                {
+                    int idSotrudnika = (int)reader["IdSotrudnika"];
+                    
+
+                    string status = "успешно";
+
+                    
+
+                    reader.Close();
+                    // Добавляем запись в таблицу IstoriaVhoda
+                    SqlCommand insertCmd = new SqlCommand("INSERT INTO IstoriaVhoda (IdSotrudnika, DataVremaPopitkiVhoda, Status) VALUES (@IdSotrudnika, @DataVremaPopitkiVhoda, @Status)", connection);
+                    insertCmd.Parameters.AddWithValue("@IdSotrudnika", idSotrudnika);
+                    insertCmd.Parameters.AddWithValue("@DataVremaPopitkiVhoda", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                    insertCmd.Parameters.AddWithValue("@Status", status);
+
+                    insertCmd.ExecuteNonQuery();
+                    
+                }
+                else
+                {
+
+                    block1 = 1;
+
+
+                    
+                }
+
+                
+
+                reader.Close();
+                connection.Close();
+            }
+            if(block1 == 1)
+            {
+                using (SqlConnection connection = new SqlConnection(connectionString))
+                {
+                    connection.Open();
+
+                    SqlCommand cmd = new SqlCommand("SELECT IdSotrudnika, Rol FROM Sotrudniki WHERE Login = @login", connection);
+                    cmd.Parameters.AddWithValue("@login", login);
+
+
+                    SqlDataReader reader = cmd.ExecuteReader();
+
+
+                    if (reader.Read())
+                    {
+                        int idSotrudnika = (int)reader["IdSotrudnika"];
+
+
+                        string status = "неуспешно";
+
+
+
+                        reader.Close();
+                        // Добавляем запись в таблицу IstoriaVhoda
+                        SqlCommand insertCmd = new SqlCommand("INSERT INTO IstoriaVhoda (IdSotrudnika, DataVremaPopitkiVhoda, Status) VALUES (@IdSotrudnika, @DataVremaPopitkiVhoda, @Status)", connection);
+                        insertCmd.Parameters.AddWithValue("@IdSotrudnika", idSotrudnika);
+                        insertCmd.Parameters.AddWithValue("@DataVremaPopitkiVhoda", DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+                        insertCmd.Parameters.AddWithValue("@Status", status);
+
+                        insertCmd.ExecuteNonQuery();
+                    }
+                    else
+                    {
+
+
+
+
+                        MessageBox.Show("Данные не найдены");
+                    }
+
+
+
+                    reader.Close();
+                    connection.Close();
+                    block1 = 0;
+                }
+            }
+            
+
+
+
+
+            DataSet user = classAvtorizacia.getUser(login, password);
+
+
+
+
+            if (user.Tables[0].Rows.Count == 0)
+            {
+                MessageBox.Show("Пользователь не найден");
+            }
+            else if (user.Tables[0].Rows.Count > 1)
+            {
+                MessageBox.Show("Найдено пользователей больше одного");
+            }
+            else
+            {
+
+                switch (user.Tables[0].Rows[0][4])
+                {
+                    case "Администратор":
+                        MessageBox.Show("Пользователь администратор");
+
+                        OknoAdministratora oknoAdministratora = new OknoAdministratora();
+                        oknoAdministratora.ds = user;
+                        oknoAdministratora.Show();
+
+                        break;
+                    case "Руководитель":
+                        MessageBox.Show("Пользователь руководитель");
+
+                        OknoRucovoditela oknoRucovoditela = new OknoRucovoditela();
+                        oknoRucovoditela.ds = user;
+                        oknoRucovoditela.Show();
+
+                        break;
+                    case "Сотрудник":
+                        MessageBox.Show("Пользователь сотрудник");
+
+                        OknoSotrudnika oknoSotrudnika = new OknoSotrudnika();
+                        oknoSotrudnika.ds = user;
+                        oknoSotrudnika.Show();
+
+                        break;
+                    default:
+                        MessageBox.Show("Данные выгружены из БД, но роль не найдена");
+                        break;
+                }
+
+
+
+
+            }
+        }
+
+        private void buttonPerehodOknoAdministratora_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void checkBoxMaska_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBoxMaska.Checked)
+            {
+                textBoxParol.PasswordChar = '\0';
+            }
+            else
+            {
+                textBoxParol.PasswordChar = '*';
+            }
+        }
+    }
+    }
+
+
+
+OknoRucovoditela.cs
+
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    public partial class OknoRucovoditela : Form
+    {
+        public DataSet ds = new DataSet();
+
+
+        // Ваш конфигурационный параметр, указывающий имя сервера базы данных
+        string serverName = "DESKTOP-LJ3RRK0\\MSSQLSERVER2";
+        // Строка соединения с базой данных
+        string connectionString;
+
+        public OknoRucovoditela()
+        {
+            InitializeComponent();
+
+            connectionString = "Data Source=" + serverName + ";Initial Catalog=UchetOborudovania;Integrated Security=True";
+
+        }
+
+        private void buttonVhod_Click(object sender, EventArgs e)
+        {
+            OknoAvtorizacii oknoAvtorizacii = new OknoAvtorizacii();
+            oknoAvtorizacii.Show();
+            this.Close();
+        }
+
+        private void OknoRucovoditela_Load(object sender, EventArgs e)
+        {
+            // TODO: данная строка кода позволяет загрузить данные в таблицу "uchetOborudovaniaDataSet5.Sotrudniki". При необходимости она может быть перемещена или удалена.
+            this.sotrudnikiTableAdapter1.Fill(this.uchetOborudovaniaDataSet5.Sotrudniki);
+            labelFIO.Text = ds.Tables[0].Rows[0][1].ToString();
+        }
+
+        private void buttonPoiskOborudovaniaRucovoditela_Click(object sender, EventArgs e)
+        {
+            int idSotrudnika = Convert.ToInt32(ds.Tables[0].Rows[0]["IdSotrudnika"]);
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                SqlCommand cmd = new SqlCommand("SELECT SeriyniyNomer, Naimenovanie, Opisanie FROM Oborudovanie WHERE IdSotrudnika = @idSotrudnika", connection);
+                cmd.Parameters.AddWithValue("@idSotrudnika", idSotrudnika);
+
+                SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                DataTable dataTable = new DataTable();
+                adapter.Fill(dataTable);
+
+                dataGridView2.DataSource = dataTable;
+            }
+        }
+    }
+}
+
+OknoSotrudnika.cs
+
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Data.SqlClient;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    public partial class OknoSotrudnika : Form
+    {
+        public DataSet ds = new DataSet();
+
+        // Ваш конфигурационный параметр, указывающий имя сервера базы данных
+        string serverName = "DESKTOP-LJ3RRK0\\MSSQLSERVER2";
+        // Строка соединения с базой данных
+        string connectionString;
+
+
+        public OknoSotrudnika()
+        {
+            InitializeComponent();
+
+            connectionString = "Data Source=" + serverName + ";Initial Catalog=UchetOborudovania;Integrated Security=True";
+        }
+
+        private void buttonNazad_Click(object sender, EventArgs e)
+        {
+            OknoAvtorizacii oknoAvtorizacii = new OknoAvtorizacii();
+            oknoAvtorizacii.Show();
+            this.Close();
+        }
+
+        private void OknoSotrudnika_Load(object sender, EventArgs e)
+        {
+            labelFIO.Text = ds.Tables[0].Rows[0][1].ToString();
+        }
+
+        private void buttonPoiskOburudovaniaSotrudnik_Click(object sender, EventArgs e)
+        {
+            int idSotrudnika = Convert.ToInt32(ds.Tables[0].Rows[0]["IdSotrudnika"]);
+            using (SqlConnection connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+
+                SqlCommand cmd = new SqlCommand("SELECT SeriyniyNomer, Naimenovanie, Opisanie FROM Oborudovanie WHERE IdSotrudnika = @idSotrudnika", connection);
+                cmd.Parameters.AddWithValue("@idSotrudnika", idSotrudnika);
+
+                SqlDataAdapter adapter = new SqlDataAdapter(cmd);
+                DataTable dataTable = new DataTable();
+                adapter.Fill(dataTable);
+
+                dataGridView1.DataSource = dataTable;
+            }
+        }
+    }
+}
+
+Program.cs
+
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace UchetOborudovania
+{
+    internal static class Program
+    {
+        /// <summary>
+        /// Главная точка входа для приложения.
+        /// </summary>
+        [STAThread]
+        static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new OknoAvtorizacii());
+        }
+    }
+}
